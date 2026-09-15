@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const { device_code } = req.body || {};
   if (!device_code) return res.status(400).json({ error: 'missing device_code' });
 
-  const GH_CLIENT_ID = process.env.GH_CLIENT_ID || 'YOUR_CLIENT_ID';
+  const GH_CLIENT_ID = process.env.GH_CLIENT_ID || 'Ov23liki67T2LQdetPDb';
 
   try {
     const r = await fetch('https://github.com/login/oauth/access_token', {

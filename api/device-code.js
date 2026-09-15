@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const GH_CLIENT_ID = process.env.GH_CLIENT_ID || 'YOUR_CLIENT_ID';
+  const GH_CLIENT_ID = process.env.GH_CLIENT_ID || 'Ov23liki67T2LQdetPDb';
 
   try {
     const r = await fetch('https://github.com/login/device/code', {
