@@ -493,7 +493,7 @@ async function pollOAuthToken(interval) {
       localStorage.setItem(STORAGE_KEY_TOKEN, j.access_token);
       closeModal();
       toast('🎉 GitHub 登录成功！', 'success');
-      loadSettings();
+      switchView('dashboard');
       return;
     }
     if (j.error === 'authorization_pending' || j.error === 'slow_down') return; // 继续等待
