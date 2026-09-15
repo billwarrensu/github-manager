@@ -443,12 +443,7 @@ let oauthPollTimer = null;
 let oauthDeviceCode = '';
 
 async function startOAuthLogin() {
-  const base = getOAuthApi();
-  if (!base) {
-    toast('请先填写 OAuth 代理地址（部署后端后获得）', 'error');
-    switchView('settings');
-    return;
-  }
+  const base = getOAuthApi(); // 空 = 面板和后端同域部署，用相对路径
   clearInterval(oauthPollTimer);
   oauthPollTimer = null;
   oauthDeviceCode = '';
