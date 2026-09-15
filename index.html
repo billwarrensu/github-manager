@@ -286,8 +286,7 @@
     <button class="nav-item" data-view="issues"><span class="nav-icon">🐞</span>Issues</button>
     <button class="nav-item" data-view="settings"><span class="nav-icon">⚙️</span>设置</button>
     <div class="sidebar-tip">
-      <strong>小提示：</strong>操作（合并 PR、创建 Issue、触发部署）都需要在「设置」里填一个 GitHub Token。
-      没有 Token 也可以查看公开仓库的信息。
+      <strong>小提示：</strong>去「设置」点 <b>使用 GitHub 一键登录</b>，授权一次即可管理你的仓库。
     </div>
   </aside>
 
@@ -330,6 +329,15 @@ let codePath = '';
 
 const API = 'https://api.github.com';
 const REPO_RE = /^[\w.-]+\/[\w.-]+$/;
+
+// OAuth 设备码代理（部署在 Vercel 的 api/ 函数）。
+// GitHub 的 OAuth 换 token 接口未开启 CORS，浏览器不能直接调，必须经这个代理中转。
+// 留空表示同域（面板和 api 部署在一起时）；填 https://xxx.vercel.app 表示分离部署。
+const STORAGE_KEY_OAUTH_API = 'ghp_oauth_api';
+const OAUTH_API_DEFAULT = '';
+function getOAuthApi() {
+  return (localStorage.getItem(STORAGE_KEY_OAUTH_API) || OAUTH_API_DEFAULT).replace(/\/+$/, '');
+}
 
 // ============ 工具函数 ============
 function getToken() { return localStorage.getItem(STORAGE_KEY_TOKEN) || ''; }
@@ -423,11 +431,92 @@ function badgeForStatus(status) {
 
 function needAuth() {
   if (!getToken()) {
-    toast('请先在「设置」里填写 GitHub Token', 'error');
+    toast('请先在「设置」里登录 GitHub', 'error');
     switchView('settings');
     return false;
   }
   return true;
+}
+
+// ============ OAuth 设备码登录 ============
+let oauthPollTimer = null;
+let oauthDeviceCode = '';
+
+async function startOAuthLogin() {
+  const base = getOAuthApi();
+  if (!base) {
+    toast('请先填写 OAuth 代理地址（部署后端后获得）', 'error');
+    switchView('settings');
+    return;
+  }
+  clearInterval(oauthPollTimer);
+  oauthPollTimer = null;
+  oauthDeviceCode = '';
+
+  try {
+    const res = await fetch(base + '/api/device-code', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.device_code) {
+      toast('申请授权码失败：' + (j.error_description || j.error || res.status), 'error');
+      return;
+    }
+    oauthDeviceCode = j.device_code;
+    const interval = Math.max(Number(j.interval) || 5, 5);
+    const uri = j.verification_uri || 'https://github.com/login/device';
+    // 展示授权码
+    openModal('GitHub 授权登录', `
+      <div style="text-align:center;padding:6px 0 2px">
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">请打开下面的链接，输入授权码完成登录</div>
+        <div style="font-size:32px;font-weight:800;letter-spacing:6px;font-family:'SF Mono',Consolas,monospace;color:var(--accent-2);background:rgba(88,166,255,.08);border:1px dashed var(--accent-2);border-radius:10px;padding:14px 10px;margin:6px auto 14px;max-width:320px">${escapeHtml(j.user_code)}</div>
+        <a class="btn btn-primary" href="${escapeHtml(uri)}" target="_blank" rel="noopener" style="font-size:15px;padding:10px 22px">🔗 打开 GitHub 授权页面</a>
+        <div style="font-size:12px;color:var(--text-2);margin-top:14px">打开页面后输入上面的代码，点 Continue → Authorize</div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:6px">本页面会自动检测授权结果，无需手动刷新</div>
+      </div>
+    `);
+    // 轮询 token
+    oauthPollTimer = setInterval(() => pollOAuthToken(interval), interval * 1000);
+    setTimeout(() => pollOAuthToken(interval), 3000);
+  } catch (e) {
+    toast('无法连接 OAuth 代理：' + e.message, 'error');
+  }
+}
+
+async function pollOAuthToken(interval) {
+  const base = getOAuthApi();
+  if (!oauthDeviceCode || !base) return;
+  try {
+    const res = await fetch(base + '/api/device-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_code: oauthDeviceCode }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (j.access_token) {
+      clearInterval(oauthPollTimer);
+      oauthPollTimer = null;
+      oauthDeviceCode = '';
+      localStorage.setItem(STORAGE_KEY_TOKEN, j.access_token);
+      closeModal();
+      toast('🎉 GitHub 登录成功！', 'success');
+      loadSettings();
+      return;
+    }
+    if (j.error === 'authorization_pending' || j.error === 'slow_down') return; // 继续等待
+    // 其他错误：授权被拒绝 / 过期
+    clearInterval(oauthPollTimer);
+    oauthPollTimer = null;
+    oauthDeviceCode = '';
+    closeModal();
+    toast('登录未完成：' + (j.error_description || j.error), 'error');
+  } catch (e) {
+    // 网络抖动忽略，继续轮询
+  }
+}
+
+function oauthLogout() {
+  localStorage.removeItem(STORAGE_KEY_TOKEN);
+  toast('已退出登录', 'success');
+  loadSettings();
 }
 
 // ============ 视图切换 ============
@@ -1045,7 +1134,30 @@ async function setIssueState2(num, state) {
 // ============ 设置 ============
 function loadSettings() {
   const hasToken = !!getToken();
+  const oauthApi = getOAuthApi();
   const html = `
+    <div class="card">
+      <div class="card-header">
+        <span>🔑 GitHub 登录</span>
+        <span class="token-status"><span class="dot ${hasToken ? 'ok' : 'no'}"></span>${hasToken ? '已登录' : '未登录'}</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" style="font-size:14px;padding:10px 20px" onclick="startOAuthLogin()">🚀 使用 GitHub 一键登录</button>
+          ${hasToken ? '<button class="btn" onclick="oauthLogout()">退出登录</button>' : ''}
+        </div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:12px;line-height:1.8">
+          点「一键登录」→ 浏览器打开 GitHub 页面 → 输入页面上显示的 8 位授权码 → 完成授权即自动登录。
+          <br>不用再手动创建和复制 Token，比旧方式方便很多。
+        </div>
+        <div class="form-group" style="border-top:1px solid var(--border);margin-top:14px">
+          <label class="form-label">OAuth 代理地址（后端部署后填写）</label>
+          <input class="form-input" id="setOAuthApi" value="${escapeHtml(oauthApi)}" placeholder="https://github-manager.vercel.app">
+          <div style="font-size:12px;color:var(--text-2);margin-top:6px">例如：https://github-manager.vercel.app（GitHub 换 token 接口不支持浏览器直连，需要这个小代理中转）</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">
         <span>⚙️ 设置</span>
@@ -1058,11 +1170,11 @@ function loadSettings() {
           <div style="font-size:12px;color:var(--text-2);margin-top:6px">例如：billwarrensu/chain-sentinel</div>
         </div>
         <div class="form-group" style="border-top:1px solid var(--border)">
-          <label class="form-label">GitHub Token（可选）</label>
+          <label class="form-label">GitHub Token（可选，手动方式）</label>
           <input class="form-input" id="setToken" type="password" value="${escapeHtml(getToken())}" placeholder="ghp_xxx 或 github_pat_xxx">
           <div style="font-size:12px;color:var(--text-2);margin-top:8px;line-height:1.8">
-            没有 Token 只能查看公开仓库；要<b>合并 PR、关闭 Issue、触发部署</b>必须配置 Token。
-            <br>Token 只会保存在你浏览器的本地存储中，不会上传到任何服务器。
+            一般用上面「一键登录」即可；此处的 Token 仅供备用或兼容旧习惯。
+            Token 只会保存在你浏览器的本地存储中，不会上传到任何服务器。
           </div>
           <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="saveSettings()">💾 保存设置</button>
@@ -1077,10 +1189,10 @@ function loadSettings() {
       <div class="card-header">❓ 使用说明</div>
       <div class="card-body" style="padding:14px 18px">
         <div class="desc-text">
-          <b>1. 创建 Token（1 分钟）：</b>点击上方「创建 Token ↗」，GitHub 会帮你勾好权限（repo + workflow），直接点底部 <b>Generate token</b>，把生成的 <code style="color:var(--accent-2)">ghp_...</code> 复制回来粘贴保存即可。<br><br>
+          <b>1. 推荐登录方式：</b>点击「🚀 使用 GitHub 一键登录」，按提示打开 GitHub 页面输入授权码即可，无需手动创建 Token。<br><br>
           <b>2. 切换仓库：</b>右上角输入 <code style="color:var(--accent-2)">owner/repo</code> 点击「切换」。<br><br>
           <b>3. 各模块操作：</b>部署管理可重跑失败的 CI；PR 可查看、合并、关闭；Issue 可查看、创建、关闭；仓库代码可浏览文件、分支、提交历史。<br><br>
-          <b>4. 安全提示：</b>Token 仅存你浏览器本地，且建议用完可在 GitHub 后台撤销。
+          <b>4. 安全提示：</b>授权 Token 仅存你浏览器本地；如想撤销授权，到 GitHub 设置 → Applications → Authorized OAuth Apps 中取消即可。
         </div>
       </div>
     </div>
@@ -1091,6 +1203,7 @@ function loadSettings() {
 function saveSettings() {
   const repo = document.getElementById('setRepo').value.trim();
   const token = document.getElementById('setToken').value.trim();
+  const oauthApi = document.getElementById('setOAuthApi').value.trim();
   if (repo && REPO_RE.test(repo)) {
     currentRepo = repo;
     localStorage.setItem(STORAGE_KEY_REPO, repo);
@@ -1101,6 +1214,8 @@ function saveSettings() {
   }
   if (token) localStorage.setItem(STORAGE_KEY_TOKEN, token);
   else localStorage.removeItem(STORAGE_KEY_TOKEN);
+  if (oauthApi) localStorage.setItem(STORAGE_KEY_OAUTH_API, oauthApi);
+  else localStorage.removeItem(STORAGE_KEY_OAUTH_API);
   toast('设置已保存', 'success');
   loadSettings();
 }
