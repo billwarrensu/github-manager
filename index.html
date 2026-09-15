@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub 便捷面板</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-2: #161b22;
+    --bg-3: #1f2630;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-2: #8b949e;
+    --accent: #2f81f7;
+    --accent-2: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --gray: #6e7681;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .app { display: flex; min-height: 100vh; }
+
+  /* 侧边栏 */
+  .sidebar {
+    width: 220px;
+    background: var(--bg-2);
+    border-right: 1px solid var(--border);
+    padding: 20px 12px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 12px 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: linear-gradient(135deg, #2f81f7, #bc8cff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: #fff;
+  }
+  .logo-text { font-size: 15px; font-weight: 700; }
+  .logo-sub { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; margin: 2px 0;
+    border-radius: 8px; cursor: pointer;
+    color: var(--text-2); font-size: 14px;
+    transition: all .15s;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--bg-3); color: var(--text); }
+  .nav-item.active { background: rgba(47,129,247,.15); color: var(--accent-2); font-weight: 600; }
+  .nav-icon { font-size: 16px; width: 22px; text-align: center; }
+
+  .sidebar-tip {
+    margin-top: 24px; padding: 12px;
+    background: var(--bg-3); border-radius: 8px;
+    font-size: 12px; color: var(--text-2); line-height: 1.6;
+  }
+  .sidebar-tip strong { color: var(--text); }
+
+  /* 主区域 */
+  .main { flex: 1; padding: 24px 32px; min-width: 0; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .page-title { font-size: 22px; font-weight: 700; }
+  .page-desc { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+
+  .repo-switch {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    padding: 6px 8px 6px 14px; border-radius: 8px;
+  }
+  .repo-switch input {
+    background: transparent; border: none; outline: none;
+    color: var(--text); font-size: 14px; width: 240px;
+  }
+  .repo-switch button {
+    background: var(--accent); border: none; color: #fff;
+    padding: 6px 14px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+  }
+  .repo-switch button:hover { background: #1f6feb; }
+
+  /* 卡片 */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .stat-label { font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+  .stat-value { font-size: 20px; font-weight: 700; }
+  .stat-sub { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+  .card {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 16px; overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; font-weight: 600;
+  }
+  .card-body { padding: 6px 0; }
+
+  /* 列表 */
+  .list-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item:hover { background: var(--bg-3); }
+  .list-item.clickable { cursor: pointer; }
+
+  .item-main { flex: 1; min-width: 0; }
+  .item-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-sub { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+  .item-right { text-align: right; flex-shrink: 0; }
+  .item-meta { font-size: 12px; color: var(--text-2); }
+
+  /* 徽章 */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-success { background: rgba(63,185,80,.15); color: var(--green); }
+  .badge-fail { background: rgba(248,81,73,.15); color: var(--red); }
+  .badge-warn { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .badge-neutral { background: rgba(110,118,129,.15); color: var(--gray); }
+  .badge-purple { background: rgba(188,140,255,.15); color: var(--purple); }
+  .badge-blue { background: rgba(88,166,255,.15); color: var(--accent-2); }
+
+  /* 按钮 */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg-3);
+    color: var(--text); font-size: 13px; cursor: pointer;
+    transition: all .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent-2); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: #1f6feb; color: #fff; }
+  .btn-danger { color: var(--red); }
+  .btn-danger:hover { border-color: var(--red); color: var(--red); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* 标签页 */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .tab {
+    padding: 8px 16px; font-size: 13px; color: var(--text-2);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    background: none; border-top: none; border-left: none; border-right: none;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+
+  /* 表单 */
+  .form-group { padding: 14px 18px; }
+  .form-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block; }
+  .form-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; color: var(--text);
+    font-size: 14px; outline: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  textarea.form-input { min-height: 100px; resize: vertical; font-family: inherit; }
+
+  /* 文件树 */
+  .file-row { display: flex; align-items: center; gap: 10px; }
+  .file-icon { font-size: 15px; width: 20px; text-align: center; }
+  .dir-icon { color: var(--yellow); }
+  .file-size { font-size: 12px; color: var(--text-2); margin-left: auto; }
+
+  /* 模态框 */
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(1,4,9,.7);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    backdrop-filter: blur(2px);
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 14px; max-width: 560px; width: 92%;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 700; }
+  .modal-body { padding: 16px 20px; font-size: 14px; line-height: 1.7; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .modal-body pre {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; font-size: 12px; overflow-x: auto; margin: 10px 0;
+    font-family: "SF Mono", Consolas, monospace; color: var(--text-2);
+  }
+
+  /* 加载 & 状态 */
+  .loading { text-align: center; padding: 40px; color: var(--text-2); font-size: 14px; }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    margin: 0 auto 12px; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 40px; color: var(--text-2); font-size: 13px; }
+  .error-box {
+    margin: 12px 18px; padding: 12px 16px;
+    background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3);
+    border-radius: 8px; color: var(--red); font-size: 13px;
+  }
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    background: var(--bg-3); border: 1px solid var(--border);
+    padding: 10px 22px; border-radius: 10px; font-size: 14px;
+    transition: transform .3s; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  .commit-files { padding: 6px 0; }
+  .commit-file {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 18px; font-size: 13px;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .commit-file .add { color: var(--green); }
+  .commit-file .del { color: var(--red); }
+  .commit-file .mod { color: var(--yellow); }
+
+  .section-title { font-size: 15px; font-weight: 700; margin: 22px 0 12px; }
+  .desc-text { font-size: 13px; color: var(--text-2); line-height: 1.8; }
+
+  .token-status { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-left: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.ok { background: var(--green); }
+  .dot.no { background: var(--red); }
+
+  @media (max-width: 768px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; display: flex; flex-wrap: wrap; gap: 4px; padding: 12px; }
+    .logo { width: 100%; }
+    .nav-item { width: auto; }
+    .main { padding: 16px; }
+    .repo-switch input { width: 150px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">GH</div>
+      <div>
+        <div class="logo-text">GitHub 便捷面板</div>
+        <div class="logo-sub">一键管理你的仓库</div>
+      </div>
+    </div>
+    <button class="nav-item active" data-view="dashboard"><span class="nav-icon">📊</span>总览</button>
+    <button class="nav-item" data-view="deploy"><span class="nav-icon">🚀</span>部署管理</button>
+    <button class="nav-item" data-view="code"><span class="nav-icon">📁</span>仓库与代码</button>
+    <button class="nav-item" data-view="pulls"><span class="nav-icon">🔀</span>Pull Requests</button>
+    <button class="nav-item" data-view="issues"><span class="nav-icon">🐞</span>Issues</button>
+    <button class="nav-item" data-view="settings"><span class="nav-icon">⚙️</span>设置</button>
+    <div class="sidebar-tip">
+      <strong>小提示：</strong>操作（合并 PR、创建 Issue、触发部署）都需要在「设置」里填一个 GitHub Token。
+      没有 Token 也可以查看公开仓库的信息。
+    </div>
+  </aside>
+
+  <!-- 主区域 -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">总览</div>
+        <div class="page-desc" id="pageDesc">查看仓库整体状态</div>
+      </div>
+      <div class="repo-switch">
+        <span style="color:var(--text-2);font-size:13px">仓库</span>
+        <input id="repoInput" placeholder="owner/repo" value="billwarrensu/chain-sentinel">
+        <button onclick="switchRepo()">切换</button>
+      </div>
+    </div>
+
+    <div id="content"></div>
+  </main>
+</div>
+
+<!-- 模态框 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <div class="modal-header" id="modalTitle"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ 全局状态 ============
+const STORAGE_KEY_TOKEN = 'ghp_token';
+const STORAGE_KEY_REPO = 'ghp_repo';
+let currentRepo = localStorage.getItem(STORAGE_KEY_REPO) || 'billwarrensu/chain-sentinel';
+let currentView = 'dashboard';
+let codePath = '';
+
+const API = 'https://api.github.com';
+const REPO_RE = /^[\w.-]+\/[\w.-]+$/;
+
+// ============ 工具函数 ============
+function getToken() { return localStorage.getItem(STORAGE_KEY_TOKEN) || ''; }
+function getHeaders(auth = true) {
+  const h = { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const t = getToken();
+  if (auth && t) h['Authorization'] = 'Bearer ' + t;
+  return h;
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff/60) + ' 分钟前';
+  if (diff < 86400) return Math.floor(diff/3600) + ' 小时前';
+  if (diff < 86400*30) return Math.floor(diff/86400) + ' 天前';
+  return new Date(iso).toLocaleDateString('zh-CN');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 2600);
+}
+
+async function apiFetch(path, options = {}) {
+  const url = API + path;
+  const res = await fetch(url, { ...options, headers: { ...getHeaders(), ...(options.headers||{}) } });
+  if (!res.ok) {
+    let msg = '请求失败 (' + res.status + ')';
+    try {
+      const j = await res.json();
+      if (j.message) msg = j.message;
+      if (j.errors && j.errors.length) msg += '：' + j.errors[0].message;
+    } catch(e) {}
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  if (res.status === 204) return null;
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('json')) return res.json();
+  return res.text();
+}
+
+function loading(html = '') {
+  document.getElementById('content').innerHTML =
+    '<div class="loading"><div class="spinner"></div>' + html + '</div>';
+}
+
+function showError(e) {
+  const msg = e && e.message ? e.message : '出错了';
+  document.getElementById('content').innerHTML =
+    '<div class="empty">⚠️ ' + escapeHtml(msg) + '</div>';
+}
+
+function badgeForStatus(status) {
+  const map = {
+    'success': '<span class="badge badge-success">成功</span>',
+    'completed': '<span class="badge badge-success">已完成</span>',
+    'failure': '<span class="badge badge-fail">失败</span>',
+    'failed': '<span class="badge badge-fail">失败</span>',
+    'cancelled': '<span class="badge badge-neutral">已取消</span>',
+    'in_progress': '<span class="badge badge-warn">进行中</span>',
+    'queued': '<span class="badge badge-warn">排队中</span>',
+    'pending': '<span class="badge badge-warn">等待中</span>',
+    'waiting': '<span class="badge badge-warn">等待中</span>',
+    'open': '<span class="badge badge-success">开启</span>',
+    'merged': '<span class="badge badge-purple">已合并</span>',
+    'closed': '<span class="badge badge-neutral">已关闭</span>',
+    'active': '<span class="badge badge-blue">活跃</span>',
+    'error': '<span class="badge badge-fail">错误</span>',
+  };
+  return map[status] || '<span class="badge badge-neutral">' + escapeHtml(status) + '</span>';
+}
+
+function needAuth() {
+  if (!getToken()) {
+    toast('请先在「设置」里填写 GitHub Token', 'error');
+    switchView('settings');
+    return false;
+  }
+  return true;
+}
+
+// ============ 视图切换 ============
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+  const meta = {
+    'dashboard': ['总览', '查看仓库整体状态'],
+    'deploy': ['部署管理', '查看和触发 GitHub Actions 部署'],
+    'code': ['仓库与代码', '浏览分支、文件和提交历史'],
+    'pulls': ['Pull Requests', '查看、合并和关闭 PR'],
+    'issues': ['Issues', '查看、创建和处理 Issue'],
+    'settings': ['设置', '配置仓库和 Token'],
+  };
+  document.getElementById('pageTitle').textContent = meta[view][0];
+  document.getElementById('pageDesc').textContent = meta[view][1];
+  const loaders = {
+    'dashboard': loadDashboard,
+    'deploy': loadDeploy,
+    'code': loadCode,
+    'pulls': loadPulls,
+    'issues': loadIssues,
+    'settings': loadSettings,
+  };
+  loaders[view]();
+}
+
+function switchRepo() {
+  const v = document.getElementById('repoInput').value.trim();
+  if (!REPO_RE.test(v)) { toast('仓库格式应为 owner/repo', 'error'); return; }
+  currentRepo = v;
+  localStorage.setItem(STORAGE_KEY_REPO, v);
+  toast('已切换到 ' + v, 'success');
+  loaders[currentView]();
+}
+const loaders = {
+  'dashboard': () => loadDashboard(),
+  'deploy': () => loadDeploy(),
+  'code': () => loadCode(),
+  'pulls': () => loadPulls(),
+  'issues': () => loadIssues(),
+  'settings': () => loadSettings(),
+};
+
+// ============ 总览 ============
+async function loadDashboard() {
+  loading('正在加载仓库信息…');
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    const [info, commits, runs] = await Promise.all([
+      apiFetch('/repos/' + repo),
+      apiFetch('/repos/' + repo + '/commits?per_page=10'),
+      apiFetch('/actions/runs?per_page=5').catch(() => []),
+    ]);
+    const html = `
+      <div class="cards">
+        <div class="stat-card">
+          <div class="stat-label">⭐ Star</div>
+          <div class="stat-value">${info.stargazers_count}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🍴 Fork</div>
+          <div class="stat-value">${info.forks_count}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">👀 Watch</div>
+          <div class="stat-value">${info.subscribers_count}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🐛 Issues</div>
+          <div class="stat-value">${info.open_issues_count}</div>
+          <div class="stat-sub">开启中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🌿 默认分支</div>
+          <div class="stat-value" style="font-size:15px">${escapeHtml(info.default_branch)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">📦 主要语言</div>
+          <div class="stat-value" style="font-size:15px">${escapeHtml(info.language || '—')}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">📋 仓库简介</div>
+        <div class="card-body" style="padding:14px 18px;font-size:14px;line-height:1.8">
+          ${escapeHtml(info.description || '暂无描述')}
+          <div style="margin-top:8px;font-size:12px;color:var(--text-2)">
+            创建于 ${fmtDate(info.created_at)} · 最近更新 ${timeAgo(info.pushed_at)}
+            ${info.private ? ' · 🔒 私有仓库' : ''}
+          </div>
+          ${info.homepage ? '<div style="margin-top:6px"><a href="' + escapeHtml(info.homepage) + '" target="_blank" style="color:var(--accent-2)">' + escapeHtml(info.homepage) + '</a></div>' : ''}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">🕐 最近提交</div>
+        <div class="card-body">
+          ${commits.length ? commits.map(c => `
+            <div class="list-item clickable" onclick="showCommit('${c.sha}')">
+              <div class="item-main">
+                <div class="item-title">${escapeHtml((c.commit.message||'').split('\n')[0])}</div>
+                <div class="item-sub">${escapeHtml(c.commit.author.name)} · ${c.sha.slice(0,7)}</div>
+              </div>
+              <div class="item-right"><span class="item-meta">${timeAgo(c.commit.author.date)}</span></div>
+            </div>
+          `).join('') : '<div class="empty">暂无提交记录</div>'}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">🚀 CI 运行状态</div>
+        <div class="card-body">
+          ${runs.length ? runs.map(r => `
+            <div class="list-item">
+              <div class="item-main">
+                <div class="item-title">${escapeHtml(r.name || r.display_title || 'Workflow')}</div>
+                <div class="item-sub">${escapeHtml(r.head_branch)} · ${timeAgo(r.created_at)}</div>
+              </div>
+              <div class="item-right">${badgeForStatus(r.status === 'completed' ? r.conclusion : r.status)}</div>
+            </div>
+          `).join('') : '<div class="empty">暂无 CI 运行记录</div>'}
+        </div>
+      </div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  } catch (e) { showError(e); }
+}
+
+async function showCommit(sha) {
+  const repo = encodeURIComponent(currentRepo);
+  openModal('提交详情 ' + sha.slice(0,7), '<div class="loading"><div class="spinner"></div></div>');
+  try {
+    const c = await apiFetch('/repos/' + repo + '/commits/' + sha);
+    const files = (c.files || []).slice(0, 50);
+    document.getElementById('modalBody').innerHTML = `
+      <div style="margin-bottom:10px"><strong>${escapeHtml((c.commit.message||'').split('\n')[0])}</strong></div>
+      <div class="desc-text" style="margin-bottom:12px">
+        👤 ${escapeHtml(c.commit.author.name)} · ${timeAgo(c.commit.author.date)} · ${c.stats ? c.stats.additions + ' 增 / ' + c.stats.deletions + ' 删' : ''}
+      </div>
+      <div class="section-title">变更文件（${files.length}）</div>
+      <div class="commit-files">
+        ${files.map(f => `
+          <div class="commit-file">
+            <span class="${f.status === 'added' ? 'add' : f.status === 'removed' ? 'del' : 'mod'}">
+              ${f.status === 'added' ? '＋' : f.status === 'removed' ? '－' : '±'}
+            </span>
+            <span>${escapeHtml(f.filename)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div class="error-box">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ============ 部署管理 ============
+async function loadDeploy() {
+  loading('正在加载部署信息…');
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    const [runs, deployments] = await Promise.all([
+      apiFetch('/actions/runs?per_page=15'),
+      apiFetch('/repos/' + repo + '/deployments?per_page=10').catch(() => []),
+    ]);
+    const html = `
+      <div class="card">
+        <div class="card-header">
+          <span>⚡ GitHub Actions 运行</span>
+          <button class="btn btn-sm" onclick="refreshView()">🔄 刷新</button>
+        </div>
+        <div class="card-body">
+          ${runs.length ? runs.map(r => `
+            <div class="list-item">
+              <div class="item-main">
+                <div class="item-title">${escapeHtml(r.name || r.display_title || 'Workflow')}</div>
+                <div class="item-sub">
+                  分支 ${escapeHtml(r.head_branch)} · ${escapeHtml(r.head_commit && r.head_commit.message ? (r.head_commit.message.split('\n')[0]).slice(0,60) : (r.display_title||'').slice(0,60))}
+                </div>
+                <div class="item-sub" style="color:var(--gray)">${r.event} · ${timeAgo(r.created_at)} · ${r.run_number ? '#' + r.run_number : ''}</div>
+              </div>
+              <div class="item-right">
+                <div style="margin-bottom:6px">${badgeForStatus(r.status === 'completed' ? r.conclusion : r.status)}</div>
+                ${(r.status === 'completed' && (r.conclusion === 'failure' || r.conclusion === 'cancelled')) ? `
+                  <button class="btn btn-sm btn-danger" onclick="rerunWorkflow(${r.id})">↻ 重新运行</button>
+                ` : ''}
+                ${r.html_url ? `<a class="btn btn-sm" href="${r.html_url}" target="_blank">查看日志 ↗</a>` : ''}
+              </div>
+            </div>
+          `).join('') : '<div class="empty">该仓库没有 GitHub Actions 运行记录</div>'}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">📦 部署记录</div>
+        <div class="card-body">
+          ${deployments.length ? deployments.map(d => `
+            <div class="list-item clickable" onclick="showDeploymentStatuses(${d.id})">
+              <div class="item-main">
+                <div class="item-title">${escapeHtml(d.environment)}</div>
+                <div class="item-sub">${escapeHtml(d.ref)} · ${d.sha ? d.sha.slice(0,7) : ''} · ${timeAgo(d.created_at)}</div>
+              </div>
+              <div class="item-right"><span class="badge badge-blue">${d.task || 'deploy'}</span></div>
+            </div>
+          `).join('') : '<div class="empty">暂无部署记录</div>'}
+        </div>
+      </div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  } catch (e) { showError(e); }
+}
+
+function refreshView() { loaders[currentView](); }
+
+async function rerunWorkflow(runId) {
+  if (!needAuth()) return;
+  openModal('重新运行', '确定要重新运行这个失败的 workflow 吗？', [
+    ['取消', 'btn', 'closeModal()'],
+    ['确认重跑', 'btn btn-danger', 'confirmRerun(' + runId + ')'],
+  ]);
+}
+async function confirmRerun(runId) {
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    await apiFetch('/actions/runs/' + runId + '/rerun', { method: 'POST' });
+    closeModal();
+    toast('已触发重新运行', 'success');
+    setTimeout(loaders.deploy, 800);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function showDeploymentStatuses(deployId) {
+  const repo = encodeURIComponent(currentRepo);
+  openModal('部署状态 #' + deployId, '<div class="loading"><div class="spinner"></div></div>');
+  try {
+    const list = await apiFetch('/repos/' + repo + '/deployments/' + deployId + '/statuses?per_page=10');
+    document.getElementById('modalBody').innerHTML = list.length ? list.map(s => `
+      <div class="list-item">
+        <div class="item-main">
+          <div class="item-title">${badgeForStatus(s.state)} ${escapeHtml(s.description || '')}</div>
+          <div class="item-sub">${timeAgo(s.created_at)} · ${escapeHtml(s.creator ? s.creator.login : '')}</div>
+        </div>
+        ${s.target_url ? `<div class="item-right"><a class="btn btn-sm" href="${escapeHtml(s.target_url)}" target="_blank">打开 ↗</a></div>` : ''}
+      </div>
+    `).join('') : '<div class="empty">暂无状态记录</div>';
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div class="error-box">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ============ 仓库与代码 ============
+async function loadCode() {
+  loading('正在加载代码信息…');
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    const [branches, commits, files] = await Promise.all([
+      apiFetch('/repos/' + repo + '/branches?per_page=30'),
+      apiFetch('/repos/' + repo + '/commits?per_page=15'),
+      apiFetch('/repos/' + repo + '/contents/').catch(() => []),
+    ]);
+    const html = `
+      <div class="card">
+        <div class="card-header">🌿 分支</div>
+        <div class="card-body">
+          ${branches.length ? branches.map(b => `
+            <div class="list-item">
+              <div class="item-main">
+                <div class="item-title"><span style="color:var(--text-2)">⎇</span> ${escapeHtml(b.name)}</div>
+                <div class="item-sub">${escapeHtml(b.commit.sha.slice(0,7))}</div>
+              </div>
+              ${b.protected ? '<div class="item-right"><span class="badge badge-blue">已保护</span></div>' : ''}
+            </div>
+          `).join('') : '<div class="empty">暂无分支</div>'}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span>📁 文件（根目录）</span>
+          <button class="btn btn-sm" onclick="loadCode()">🔄 刷新</button>
+        </div>
+        <div class="card-body">
+          ${files.length ? files.map(f => `
+            <div class="list-item ${f.type === 'dir' ? 'clickable' : ''}" ${f.type === 'dir' ? `onclick="openDir('${escapeHtml(f.path)}')"` : ''}>
+              <div class="file-row">
+                <span class="file-icon ${f.type === 'dir' ? 'dir-icon' : ''}">${f.type === 'dir' ? '📁' : '📄'}</span>
+                <span class="item-title" style="font-weight:500">${escapeHtml(f.name)}</span>
+                <span class="file-size">${f.type === 'file' ? fmtSize(f.size) : ''}</span>
+              </div>
+            </div>
+          `).join('') : '<div class="empty">仓库为空</div>'}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">🕐 提交历史</div>
+        <div class="card-body">
+          ${commits.length ? commits.map(c => `
+            <div class="list-item clickable" onclick="showCommit('${c.sha}')">
+              <div class="item-main">
+                <div class="item-title">${escapeHtml((c.commit.message||'').split('\n')[0])}</div>
+                <div class="item-sub">${escapeHtml(c.commit.author.name)} · ${c.sha.slice(0,7)} · ${timeAgo(c.commit.author.date)}</div>
+              </div>
+              <div class="item-right"><span class="item-meta">${escapeHtml((c.commit.message||'').split('\n').length > 1 ? '…' : '')}</span></div>
+            </div>
+          `).join('') : '<div class="empty">暂无提交</div>'}
+        </div>
+      </div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  } catch (e) { showError(e); }
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+async function openDir(path) {
+  codePath = path;
+  const repo = encodeURIComponent(currentRepo);
+  loading('正在打开 ' + path + ' …');
+  try {
+    const files = await apiFetch('/repos/' + repo + '/contents/' + path.split('/').map(encodeURIComponent).join('/'));
+    document.getElementById('content').innerHTML = `
+      <div style="margin-bottom:12px">
+        <button class="btn btn-sm" onclick="goBackDir()">← 返回</button>
+        <span style="margin-left:10px;font-size:13px;color:var(--text-2)">${escapeHtml(path)}</span>
+      </div>
+      <div class="card">
+        <div class="card-header">📁 文件</div>
+        <div class="card-body">
+          ${files.map(f => `
+            <div class="list-item ${f.type === 'dir' ? 'clickable' : ''}" ${f.type === 'dir' ? `onclick="openDir('${escapeHtml(f.path)}')"` : `onclick="showFileInfo('${escapeHtml(f.path)}')"`}>
+              <div class="file-row">
+                <span class="file-icon ${f.type === 'dir' ? 'dir-icon' : ''}">${f.type === 'dir' ? '📁' : '📄'}</span>
+                <span class="item-title" style="font-weight:500">${escapeHtml(f.name)}</span>
+                <span class="file-size">${f.type === 'file' ? fmtSize(f.size) : ''}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch (e) { showError(e); }
+}
+
+function goBackDir() {
+  const parts = codePath.split('/');
+  parts.pop();
+  if (parts.length === 0) { codePath = ''; loadCode(); }
+  else openDir(parts.join('/'));
+}
+
+async function showFileInfo(path) {
+  const repo = encodeURIComponent(currentRepo);
+  openModal('文件信息', '<div class="loading"><div class="spinner"></div></div>');
+  try {
+    const f = await apiFetch('/repos/' + repo + '/contents/' + path.split('/').map(encodeURIComponent).join('/'));
+    document.getElementById('modalBody').innerHTML = `
+      <div style="margin-bottom:6px"><strong>${escapeHtml(f.name)}</strong></div>
+      <div class="desc-text" style="margin-bottom:12px">
+        大小 ${fmtSize(f.size)} · ${timeAgo(f.updated_at)} · sha ${escapeHtml(f.sha.slice(0,10))}
+      </div>
+      ${f.download_url ? `<a class="btn btn-sm" href="${escapeHtml(f.download_url)}" target="_blank">下载文件 ↗</a>` : ''}
+      <a class="btn btn-sm" href="${f.html_url ? escapeHtml(f.html_url) : '#'}" target="_blank" style="margin-left:8px">GitHub 查看 ↗</a>
+    `;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div class="error-box">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ============ PR 管理 ============
+let pullState = 'open';
+async function loadPulls() {
+  loading('正在加载 Pull Requests…');
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    const list = await apiFetch('/repos/' + repo + '/pulls?state=' + pullState + '&per_page=20');
+    const html = `
+      <div class="tabs">
+        <button class="tab ${pullState==='open'?'active':''}" onclick="setPullState('open')">🟢 开启中</button>
+        <button class="tab ${pullState==='closed'?'active':''}" onclick="setPullState('closed')">🔀 已合并/关闭</button>
+      </div>
+      <div class="card">
+        <div class="card-header">🔀 PR 列表（${pullState === 'open' ? '开启中' : '已合并/关闭'}）</div>
+        <div class="card-body">
+          ${list.length ? list.map(pr => `
+            <div class="list-item clickable" onclick="showPullDetail(${pr.number})">
+              <div class="item-main">
+                <div class="item-title">
+                  #${pr.number} ${escapeHtml(pr.title)}
+                </div>
+                <div class="item-sub">
+                  ${escapeHtml(pr.user.login)} · ${pr.merged_at ? '合并于 ' + timeAgo(pr.merged_at) : pr.closed_at ? '关闭于 ' + timeAgo(pr.closed_at) : '开启于 ' + timeAgo(pr.created_at)}
+                  · ${pr.additions != null ? '+' + pr.additions + ' −' + pr.deletions : ''}
+                </div>
+              </div>
+              <div class="item-right">
+                ${badgeForStatus(pr.merged_at ? 'merged' : pr.state)}
+              </div>
+            </div>
+          `).join('') : '<div class="empty">暂无 PR</div>'}
+        </div>
+      </div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  } catch (e) { showError(e); }
+}
+
+function setPullState(s) { pullState = s; loadPulls(); }
+
+async function showPullDetail(num) {
+  const repo = encodeURIComponent(currentRepo);
+  openModal('PR #' + num, '<div class="loading"><div class="spinner"></div></div>');
+  try {
+    const [pr, files] = await Promise.all([
+      apiFetch('/repos/' + repo + '/pulls/' + num),
+      apiFetch('/repos/' + repo + '/pulls/' + num + '/files?per_page=50'),
+    ]);
+    let footer = '<button class="btn" onclick="closeModal()">关闭</button>';
+    if (pr.state === 'open') {
+      footer = `
+        <button class="btn btn-danger" onclick="confirmClosePull(${num})">关闭 PR</button>
+        <button class="btn btn-primary" ${pr.mergeable === false ? 'disabled title="存在冲突"' : ''} onclick="confirmMergePull(${num})">合并 PR</button>
+        <button class="btn" onclick="closeModal()">关闭</button>
+      `;
+    }
+    document.getElementById('modalFooter').innerHTML = footer;
+    document.getElementById('modalBody').innerHTML = `
+      <div style="margin-bottom:8px"><strong>${escapeHtml(pr.title)}</strong></div>
+      <div class="desc-text" style="margin-bottom:10px">
+        👤 ${escapeHtml(pr.user.login)} · ${pr.merged_at ? '已合并 ' + timeAgo(pr.merged_at) : pr.state === 'closed' ? '已关闭' : '开启于 ' + timeAgo(pr.created_at)}
+      </div>
+      <div class="desc-text" style="margin-bottom:12px">
+        ${escapeHtml(pr.head.ref)} <span style="color:var(--text-2)">→</span> ${escapeHtml(pr.base.ref)}
+        ${pr.mergeable_state ? ' · 合并状态：' + escapeHtml(pr.mergeable_state) : ''}
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;line-height:1.7;margin-bottom:12px;white-space:pre-wrap">${escapeHtml(pr.body || '暂无描述')}</div>
+      <div class="section-title">变更文件（${files.length}）</div>
+      <div class="commit-files">
+        ${files.map(f => `
+          <div class="commit-file">
+            <span class="${f.status === 'added' ? 'add' : f.status === 'removed' ? 'del' : 'mod'}">
+              ${f.status === 'added' ? '＋' : f.status === 'removed' ? '－' : '±'}
+            </span>
+            <span>${escapeHtml(f.filename)} <span style="color:var(--text-2)">+${f.additions} −${f.deletions}</span></span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div class="error-box">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function confirmMergePull(num) {
+  if (!needAuth()) return;
+  openModal('合并 PR #' + num, '确定要合并这个 Pull Request 吗？合并后代码将进入目标分支。', [
+    ['取消', 'btn', 'closeModal()'],
+    ['确认合并', 'btn btn-primary', 'mergePull(' + num + ')'],
+  ]);
+}
+async function mergePull(num) {
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    await apiFetch('/repos/' + repo + '/pulls/' + num + '/merge', { method: 'PUT' });
+    closeModal();
+    toast('PR #' + num + ' 已合并', 'success');
+    setTimeout(loadPulls, 800);
+  } catch (e) { toast('合并失败：' + e.message, 'error'); }
+}
+
+function confirmClosePull(num) {
+  if (!needAuth()) return;
+  openModal('关闭 PR #' + num, '确定要关闭这个 Pull Request 吗？（不会合并代码）', [
+    ['取消', 'btn', 'closeModal()'],
+    ['确认关闭', 'btn btn-danger', 'closePull(' + num + ')'],
+  ]);
+}
+async function closePull(num) {
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    await apiFetch('/repos/' + repo + '/pulls/' + num, { method: 'PATCH', body: JSON.stringify({ state: 'closed' }) });
+    closeModal();
+    toast('PR #' + num + ' 已关闭', 'success');
+    setTimeout(loadPulls, 800);
+  } catch (e) { toast('关闭失败：' + e.message, 'error'); }
+}
+
+// ============ Issue 管理 ============
+let issueState = 'open';
+async function loadIssues() {
+  loading('正在加载 Issues…');
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    const list = await apiFetch('/repos/' + repo + '/issues?state=' + issueState + '&per_page=20');
+    const html = `
+      <div class="tabs">
+        <button class="tab ${issueState==='open'?'active':''}" onclick="setIssueState('open')">🟢 开启中</button>
+        <button class="tab ${issueState==='closed'?'active':''}" onclick="setIssueState('closed')">⬜ 已关闭</button>
+      </div>
+      <div style="margin-bottom:14px">
+        <button class="btn btn-primary" onclick="showCreateIssue()">＋ 新建 Issue</button>
+      </div>
+      <div class="card">
+        <div class="card-header">🐞 Issue 列表</div>
+        <div class="card-body">
+          ${list.length ? list.map(iss => `
+            <div class="list-item clickable" onclick="showIssueDetail(${iss.number})">
+              <div class="item-main">
+                <div class="item-title">#${iss.number} ${escapeHtml(iss.title)}</div>
+                <div class="item-sub">
+                  ${escapeHtml(iss.user.login)} · ${timeAgo(iss.created_at)}
+                  ${iss.comments ? ' · 💬 ' + iss.comments : ''}
+                  ${iss.labels && iss.labels.length ? ' · ' + iss.labels.map(l => '<span class="badge badge-blue" style="font-size:11px;padding:1px 8px">' + escapeHtml(l.name) + '</span>').join(' ') : ''}
+                </div>
+              </div>
+              <div class="item-right">${badgeForStatus(iss.state)}</div>
+            </div>
+          `).join('') : '<div class="empty">暂无 Issue</div>'}
+        </div>
+      </div>
+    `;
+    document.getElementById('content').innerHTML = html;
+  } catch (e) { showError(e); }
+}
+
+function setIssueState(s) { issueState = s; loadIssues(); }
+
+function showCreateIssue() {
+  if (!needAuth()) return;
+  openModal('新建 Issue', `
+    <div class="form-group" style="padding:0">
+      <label class="form-label">标题</label>
+      <input class="form-input" id="newIssueTitle" placeholder="Issue 标题">
+      <label class="form-label" style="margin-top:14px">描述</label>
+      <textarea class="form-input" id="newIssueBody" placeholder="问题描述（可选）"></textarea>
+    </div>
+  `, [
+    ['取消', 'btn', 'closeModal()'],
+    ['创建', 'btn btn-primary', 'createIssue()'],
+  ]);
+}
+async function createIssue() {
+  const title = document.getElementById('newIssueTitle').value.trim();
+  if (!title) { toast('请输入标题', 'error'); return; }
+  const body = document.getElementById('newIssueBody').value.trim();
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    await apiFetch('/repos/' + repo + '/issues', { method: 'POST', body: JSON.stringify({ title, body }) });
+    closeModal();
+    toast('Issue 已创建', 'success');
+    setTimeout(loadIssues, 800);
+  } catch (e) { toast('创建失败：' + e.message, 'error'); }
+}
+
+async function showIssueDetail(num) {
+  const repo = encodeURIComponent(currentRepo);
+  openModal('Issue #' + num, '<div class="loading"><div class="spinner"></div></div>');
+  try {
+    const iss = await apiFetch('/repos/' + repo + '/issues/' + num);
+    let footer = '<button class="btn" onclick="closeModal()">关闭</button>';
+    if (iss.state === 'open') {
+      footer = `
+        <button class="btn btn-danger" onclick="confirmCloseIssue(${num})">关闭 Issue</button>
+        <button class="btn" onclick="closeModal()">关闭</button>
+      `;
+    } else {
+      footer = `
+        <button class="btn btn-primary" onclick="confirmReopenIssue(${num})">重新打开</button>
+        <button class="btn" onclick="closeModal()">关闭</button>
+      `;
+    }
+    document.getElementById('modalFooter').innerHTML = footer;
+    document.getElementById('modalBody').innerHTML = `
+      <div style="margin-bottom:8px"><strong>${escapeHtml(iss.title)}</strong></div>
+      <div class="desc-text" style="margin-bottom:12px">
+        👤 ${escapeHtml(iss.user.login)} · ${timeAgo(iss.created_at)} · 💬 ${iss.comments} 条评论
+        ${iss.labels && iss.labels.length ? '<br>' + iss.labels.map(l => '<span class="badge badge-blue" style="font-size:11px;padding:1px 8px">' + escapeHtml(l.name) + '</span>').join(' ') : ''}
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;line-height:1.7;white-space:pre-wrap">${escapeHtml(iss.body || '暂无描述')}</div>
+    `;
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<div class="error-box">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function confirmCloseIssue(num) {
+  if (!needAuth()) return;
+  openModal('关闭 Issue #' + num, '确定要关闭这个 Issue 吗？', [
+    ['取消', 'btn', 'closeModal()'],
+    ['确认关闭', 'btn btn-danger', 'setIssueState2(' + num + ',"closed")'],
+  ]);
+}
+function confirmReopenIssue(num) {
+  if (!needAuth()) return;
+  openModal('重新打开 Issue #' + num, '确定要重新打开这个 Issue 吗？', [
+    ['取消', 'btn', 'closeModal()'],
+    ['确认重开', 'btn btn-primary', 'setIssueState2(' + num + ',"open")'],
+  ]);
+}
+async function setIssueState2(num, state) {
+  const repo = encodeURIComponent(currentRepo);
+  try {
+    await apiFetch('/repos/' + repo + '/issues/' + num, { method: 'PATCH', body: JSON.stringify({ state }) });
+    closeModal();
+    toast('Issue #' + num + (state === 'closed' ? ' 已关闭' : ' 已重新打开'), 'success');
+    setTimeout(loadIssues, 800);
+  } catch (e) { toast('操作失败：' + e.message, 'error'); }
+}
+
+// ============ 设置 ============
+function loadSettings() {
+  const hasToken = !!getToken();
+  const html = `
+    <div class="card">
+      <div class="card-header">
+        <span>⚙️ 设置</span>
+        <span class="token-status"><span class="dot ${hasToken ? 'ok' : 'no'}"></span>${hasToken ? '已配置 Token' : '未配置 Token'}</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">默认仓库</label>
+          <input class="form-input" id="setRepo" value="${escapeHtml(currentRepo)}" placeholder="owner/repo">
+          <div style="font-size:12px;color:var(--text-2);margin-top:6px">例如：billwarrensu/chain-sentinel</div>
+        </div>
+        <div class="form-group" style="border-top:1px solid var(--border)">
+          <label class="form-label">GitHub Token（可选）</label>
+          <input class="form-input" id="setToken" type="password" value="${escapeHtml(getToken())}" placeholder="ghp_xxx 或 github_pat_xxx">
+          <div style="font-size:12px;color:var(--text-2);margin-top:8px;line-height:1.8">
+            没有 Token 只能查看公开仓库；要<b>合并 PR、关闭 Issue、触发部署</b>必须配置 Token。
+            <br>Token 只会保存在你浏览器的本地存储中，不会上传到任何服务器。
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveSettings()">💾 保存设置</button>
+            <button class="btn" onclick="document.getElementById('setToken').value='';saveSettings()">清除 Token</button>
+            <a class="btn" href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=GitHub-Manager-Panel" target="_blank">创建 Token ↗</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">❓ 使用说明</div>
+      <div class="card-body" style="padding:14px 18px">
+        <div class="desc-text">
+          <b>1. 创建 Token（1 分钟）：</b>点击上方「创建 Token ↗」，GitHub 会帮你勾好权限（repo + workflow），直接点底部 <b>Generate token</b>，把生成的 <code style="color:var(--accent-2)">ghp_...</code> 复制回来粘贴保存即可。<br><br>
+          <b>2. 切换仓库：</b>右上角输入 <code style="color:var(--accent-2)">owner/repo</code> 点击「切换」。<br><br>
+          <b>3. 各模块操作：</b>部署管理可重跑失败的 CI；PR 可查看、合并、关闭；Issue 可查看、创建、关闭；仓库代码可浏览文件、分支、提交历史。<br><br>
+          <b>4. 安全提示：</b>Token 仅存你浏览器本地，且建议用完可在 GitHub 后台撤销。
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('content').innerHTML = html;
+}
+
+function saveSettings() {
+  const repo = document.getElementById('setRepo').value.trim();
+  const token = document.getElementById('setToken').value.trim();
+  if (repo && REPO_RE.test(repo)) {
+    currentRepo = repo;
+    localStorage.setItem(STORAGE_KEY_REPO, repo);
+    document.getElementById('repoInput').value = repo;
+  } else if (repo) {
+    toast('仓库格式应为 owner/repo', 'error');
+    return;
+  }
+  if (token) localStorage.setItem(STORAGE_KEY_TOKEN, token);
+  else localStorage.removeItem(STORAGE_KEY_TOKEN);
+  toast('设置已保存', 'success');
+  loadSettings();
+}
+
+// ============ 模态框 ============
+function openModal(title, bodyHtml, footerButtons = []) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  const footer = document.getElementById('modalFooter');
+  if (footerButtons.length) {
+    footer.innerHTML = footerButtons.map(b => `<button class="${b[1]}" onclick="${b[2]}">${b[0]}</button>`).join('');
+    footer.style.display = 'flex';
+  } else {
+    footer.innerHTML = '<button class="btn" onclick="closeModal()">关闭</button>';
+    footer.style.display = 'flex';
+  }
+  document.getElementById('modalMask').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modalMask').classList.remove('show');
+  document.getElementById('modalFooter').innerHTML = '';
+}
+document.getElementById('modalMask').addEventListener('click', e => {
+  if (e.target.id === 'modalMask') closeModal();
+});
+
+// ============ 初始化 ============
+document.querySelectorAll('.nav-item').forEach(n => {
+  n.addEventListener('click', () => switchView(n.dataset.view));
+});
+document.getElementById('repoInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') switchRepo();
+});
+document.getElementById('repoInput').value = currentRepo;
+switchView('dashboard');
+</script>
+</body>
+</html>
